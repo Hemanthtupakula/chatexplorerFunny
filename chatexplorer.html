@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIBE CHECK — Chat Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root {
+  --cream: #FFF8EE;
+  --warm: #FFF3DC;
+  --orange: #FF6B35;
+  --orange2: #FF8C42;
+  --yellow: #FFD23F;
+  --yellow2: #FFEA80;
+  --green: #06D6A0;
+  --green2: #0AE6AC;
+  --blue: #118AB2;
+  --blue2: #44BFDE;
+  --pink: #FF6B9D;
+  --pink2: #FF9ABE;
+  --purple: #9B5DE5;
+  --ink: #1A1A2E;
+  --ink2: #16213E;
+  --ink3: #0F3460;
+  --text: #1A1A2E;
+  --muted: #6B7280;
+  --card: #FFFFFF;
+  --border: rgba(26,26,46,0.08);
+  --shadow: 0 4px 24px rgba(26,26,46,0.08);
+  --shadow-lg: 0 12px 48px rgba(26,26,46,0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--cream);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* CUSTOM CURSOR */
+.cursor {
+  width: 20px; height: 20px;
+  border: 2px solid var(--orange);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  transition: transform 0.15s ease, border-color 0.2s;
+  transform: translate(-50%, -50%);
+}
+.cursor-dot {
+  width: 6px; height: 6px;
+  background: var(--orange);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: transform 0.05s;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--orange); border-radius: 3px; }
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  background: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated BG blobs */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.25;
+  animation: float 8s ease-in-out infinite;
+  pointer-events: none;
+}
+.blob1 { width: 500px; height: 500px; background: var(--orange); top: -150px; left: -150px; animation-delay: 0s; }
+.blob2 { width: 400px; height: 400px; background: var(--purple); bottom: -100px; right: -100px; animation-delay: -3s; }
+.blob3 { width: 300px; height: 300px; background: var(--green); top: 50%; left: 60%; animation-delay: -5s; }
+@keyframes float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,107,53,0.15);
+  border: 1px solid rgba(255,107,53,0.4);
+  color: var(--orange);
+  padding: 8px 18px;
+  border-radius: 100px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-bottom: 32px;
+  animation: slideDown 0.6s ease both;
+}
+.badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: ping 1.5s infinite; }
+@keyframes ping { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.7} }
+@keyframes slideDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+
+.hero h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(52px, 12vw, 120px);
+  font-weight: 800;
+  line-height: 0.88;
+  color: var(--cream);
+  margin-bottom: 8px;
+  animation: slideDown 0.7s ease 0.1s both;
+}
+.hero h1 .accent {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  color: var(--yellow);
+  display: block;
+}
+.hero-sub {
+  font-size: 16px;
+  color: rgba(255,248,238,0.55);
+  max-width: 400px;
+  line-height: 1.7;
+  margin: 20px auto 48px;
+  font-weight: 400;
+  animation: slideDown 0.7s ease 0.2s both;
+}
+
+/* UPLOAD ZONE */
+.upload-area {
+  background: rgba(255,248,238,0.06);
+  border: 2px dashed rgba(255,248,238,0.2);
+  border-radius: 20px;
+  padding: 48px;
+  max-width: 480px;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  animation: slideDown 0.7s ease 0.3s both;
+}
+.upload-area:hover, .upload-area.drag {
+  border-color: var(--orange);
+  background: rgba(255,107,53,0.08);
+  transform: scale(1.02);
+}
+.upload-icon-big {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  animation: bounce 2s infinite;
+}
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.upload-area h3 { color: var(--cream); font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.upload-area p { color: rgba(255,248,238,0.45); font-size: 13px; line-height: 1.6; margin-bottom: 24px; font-weight: 400; }
+.btn-upload {
+  background: var(--orange);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 100px;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-upload:hover { background: var(--orange2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,107,53,0.4); }
+#fileIn { display: none; }
+
+.err-msg {
+  margin-top: 16px;
+  padding: 12px 18px;
+  background: rgba(255,107,107,0.1);
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 12px;
+  color: #FF6B6B;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  max-width: 480px;
+  display: none;
+  line-height: 1.6;
+}
+
+/* LOADER */
+.loader-wrap {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 60px;
+}
+.loader-emoji { font-size: 48px; animation: spin-pop 0.8s linear infinite; }
+@keyframes spin-pop { 0%{transform:rotate(0) scale(1)} 50%{transform:rotate(180deg) scale(1.2)} 100%{transform:rotate(360deg) scale(1)} }
+.loader-txt {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: rgba(255,248,238,0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.loader-msgs { color: var(--yellow); font-size: 14px; font-weight: 600; }
+
+/* ── NAV (shown after upload) ── */
+.top-nav {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 40px;
+  background: white;
+  border-bottom: 2px solid var(--ink);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+}
+.nav-logo {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-logo span { color: var(--orange); }
+.nav-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.nav-pill {
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1.5px solid var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  color: var(--ink);
+}
+.nav-pill:hover { background: var(--ink); color: white; }
+.nav-btn {
+  background: var(--orange);
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 100px;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.nav-btn:hover { background: var(--orange2); }
+
+/* ── DASHBOARD ── */
+#dash { display: none; }
+
+/* SECTION */
+.sec {
+  padding: 80px 40px;
+  position: relative;
+}
+.sec:nth-child(even) { background: white; }
+.sec-hdr {
+  margin-bottom: 48px;
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+.sec-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--orange);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+.sec-title {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+}
+.sec-title em {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  color: var(--orange);
+  font-weight: 400;
+}
+.sec-subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 6px;
+}
+.sec-line { flex: 1; height: 2px; background: linear-gradient(90deg, var(--ink), transparent); margin-bottom: 6px; }
+
+/* ── STAT CARDS ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.sc {
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  padding: 28px 24px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.sc:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+.sc.orange { background: var(--orange); border-color: var(--ink); }
+.sc.yellow { background: var(--yellow); }
+.sc.green { background: var(--green); }
+.sc.blue { background: var(--blue); color: white; border-color: var(--blue); }
+.sc.purple { background: var(--purple); color: white; border-color: var(--purple); }
+.sc.pink { background: var(--pink); color: white; border-color: var(--pink); }
+.sc-emoji { font-size: 28px; margin-bottom: 12px; display: block; }
+.sc-val { font-size: 40px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.sc-lbl { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.7; margin-bottom: 4px; }
+.sc-sub { font-size: 12px; opacity: 0.65; font-weight: 400; }
+.sc-corner { position: absolute; top: 16px; right: 16px; font-size: 11px; font-family: 'Space Mono', monospace; opacity: 0.4; }
+
+/* ── FUNNY ROAST CARD ── */
+.roast-section {
+  background: var(--ink);
+  padding: 80px 40px;
+}
+.roast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.roast-card {
+  background: rgba(255,248,238,0.05);
+  border: 1px solid rgba(255,248,238,0.12);
+  border-radius: 20px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.roast-card:hover { background: rgba(255,248,238,0.09); transform: translateY(-4px); }
+.roast-card::before {
+  content: attr(data-emoji);
+  font-size: 80px;
+  position: absolute;
+  right: -10px;
+  bottom: -15px;
+  opacity: 0.12;
+}
+.roast-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.rb-orange { background: rgba(255,107,53,0.2); color: var(--orange); }
+.rb-yellow { background: rgba(255,210,63,0.2); color: var(--yellow); }
+.rb-green { background: rgba(6,214,160,0.2); color: var(--green); }
+.rb-pink { background: rgba(255,107,157,0.2); color: var(--pink); }
+.rb-purple { background: rgba(155,93,229,0.2); color: #BF8EFF; }
+.rb-blue { background: rgba(68,191,222,0.2); color: var(--blue2); }
+.roast-title { font-size: 20px; font-weight: 800; color: var(--cream); margin-bottom: 8px; }
+.roast-person { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 28px; color: var(--yellow); display: block; margin-bottom: 10px; }
+.roast-txt { font-size: 14px; color: rgba(255,248,238,0.55); line-height: 1.7; font-weight: 400; }
+
+/* ── LEADERBOARD ── */
+.lb { display: flex; flex-direction: column; gap: 12px; }
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.lb-row:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }
+.lb-row.rank1 { background: var(--yellow); }
+.lb-row.rank2 { background: rgba(192,192,192,0.15); }
+.lb-row.rank3 { background: rgba(205,127,50,0.1); }
+.lb-rank { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; width: 40px; text-align: center; }
+.lb-rank.gold { color: var(--orange); }
+.av {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 800;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+.lb-info { flex: 1; }
+.lb-name { font-size: 17px; font-weight: 700; }
+.lb-meta { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 2px; }
+.lb-bar-wrap { width: 120px; height: 6px; background: rgba(26,26,46,0.1); border-radius: 3px; }
+.lb-bar { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(.16,1,.3,1); }
+.lb-count { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; min-width: 80px; text-align: right; }
+.lb-crown { font-size: 20px; }
+
+/* ── CHARTS ── */
+.charts-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.charts-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.cc {
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.cc-lbl {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ── WORD CLOUD ── */
+.wcloud {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  align-items: center; padding: 32px;
+  background: var(--ink); border-radius: 20px;
+  border: 2px solid var(--ink);
+}
+.wtag {
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-weight: 700;
+  cursor: default;
+  transition: transform 0.2s;
+  border: 2px solid;
+}
+.wtag:hover { transform: scale(1.1) rotate(-2deg); }
+
+/* ── EMOJI SECTION ── */
+.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px; }
+.emoji-card {
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  padding: 18px 12px;
+  text-align: center;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: all 0.2s;
+}
+.emoji-card:hover { transform: translate(-2px, -2px) rotate(-3deg); box-shadow: 5px 5px 0 var(--ink); }
+.emoji-char { font-size: 32px; display: block; margin-bottom: 6px; }
+.emoji-count { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+.emoji-pct { font-size: 10px; color: var(--muted); }
+
+/* ── TIMELINE ── */
+.tl { display: flex; flex-direction: column; gap: 0; }
+.tl-item {
+  display: flex; gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tl-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--orange); border: 2px solid var(--ink);
+  flex-shrink: 0; margin-top: 4px;
+}
+.tl-date { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--orange); width: 100px; flex-shrink: 0; margin-top: 2px; }
+.tl-msg { font-size: 14px; margin-bottom: 3px; font-weight: 500; }
+.tl-who { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+/* ── PROFILE TABLE ── */
+.ptable { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+.ptable th {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); padding: 0 16px 8px; text-align: left;
+}
+.ptable td {
+  padding: 14px 16px;
+  background: white;
+  font-size: 13px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+}
+.ptable td:first-child { border-left: 2px solid var(--ink); border-radius: 10px 0 0 10px; font-weight: 700; }
+.ptable td:last-child { border-right: 2px solid var(--ink); border-radius: 0 10px 10px 0; }
+.ptable tr:hover td { background: var(--warm); }
+.pill {
+  display: inline-block; padding: 3px 12px; border-radius: 100px;
+  font-size: 10px; font-weight: 700; font-family: 'Space Mono', monospace;
+  border: 1.5px solid;
+}
+.p-orange { background: rgba(255,107,53,.1); color: var(--orange); border-color: var(--orange); }
+.p-green { background: rgba(6,214,160,.1); color: var(--green); border-color: var(--green); }
+.p-purple { background: rgba(155,93,229,.1); color: var(--purple); border-color: var(--purple); }
+.p-blue { background: rgba(17,138,178,.1); color: var(--blue); border-color: var(--blue); }
+
+/* ── ACHIEVEMENTS ── */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.ach-card {
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.ach-card:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }
+.ach-card.locked { opacity: 0.4; filter: grayscale(1); }
+.ach-icon { font-size: 36px; margin-bottom: 10px; display: block; }
+.ach-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.ach-desc { font-size: 11px; color: var(--muted); line-height: 1.5; font-weight: 400; }
+.ach-winner { font-size: 12px; color: var(--orange); font-weight: 700; margin-top: 8px; font-family: 'Space Mono', monospace; }
+.ach-badge {
+  position: absolute; top: 12px; right: 12px;
+  font-size: 9px; font-family: 'Space Mono', monospace;
+  background: var(--yellow); color: var(--ink);
+  padding: 3px 8px; border-radius: 100px; font-weight: 700;
+}
+
+/* ── HEAT CALENDAR ── */
+.heatmap-wrap { overflow-x: auto; }
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(53, 1fr);
+  gap: 3px;
+  min-width: 700px;
+  padding: 8px 0;
+}
+.hm-cell { width: 12px; height: 12px; border-radius: 2px; transition: transform 0.2s; }
+.hm-cell:hover { transform: scale(1.4); z-index: 10; position: relative; }
+.hm-labels { display: flex; justify-content: space-between; min-width: 700px; }
+.hm-label { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); }
+
+/* ── SPEED METER ── */
+.speed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.speed-card {
+  background: var(--ink); border-radius: 16px; padding: 24px; text-align: center;
+}
+.speed-ring { position: relative; width: 100px; height: 100px; margin: 0 auto 16px; }
+.speed-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.speed-bg { fill: none; stroke: rgba(255,248,238,.1); stroke-width: 8; }
+.speed-fg { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1.5s cubic-bezier(.16,1,.3,1); }
+.speed-val {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 800; color: var(--cream);
+}
+.speed-unit { font-size: 9px; color: rgba(255,248,238,.45); font-family: 'Space Mono', monospace; }
+.speed-name { font-size: 13px; color: rgba(255,248,238,.6); font-weight: 400; margin-top: 4px; }
+.speed-label { font-size: 12px; color: rgba(255,248,238,.85); font-weight: 700; }
+
+/* ── WRAPPED ── */
+.wrapped-outer {
+  background: linear-gradient(135deg, var(--orange), var(--pink) 50%, var(--purple));
+  border-radius: 24px;
+  padding: 4px;
+  box-shadow: 0 20px 60px rgba(255,107,53,.3);
+}
+#wcard {
+  background: var(--ink);
+  border-radius: 22px;
+  padding: 56px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+#wcard::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--orange), var(--yellow), var(--green), var(--blue), var(--purple), var(--pink));
+}
+.wcard-eyebrow {
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 3px; color: rgba(255,248,238,.4);
+  text-transform: uppercase; margin-bottom: 12px;
+}
+.wcard-title {
+  font-size: clamp(48px, 10vw, 80px);
+  font-weight: 800; color: var(--cream); line-height: 0.95; margin-bottom: 4px;
+}
+.wcard-title em {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic; color: var(--yellow);
+}
+.wcard-sub { font-size: 13px; color: rgba(255,248,238,.35); margin-bottom: 44px; font-family: 'Space Mono', monospace; letter-spacing: 2px; }
+.wcard-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 2px; background: rgba(255,255,255,.05);
+  border-radius: 16px; overflow: hidden;
+  max-width: 640px; margin: 0 auto 36px;
+}
+.wc {
+  background: rgba(255,248,238,.04);
+  padding: 20px 16px; text-align: center;
+  transition: background .2s;
+}
+.wc:hover { background: rgba(255,248,238,.08); }
+.wc-ico { font-size: 24px; margin-bottom: 6px; display: block; }
+.wc-lbl { font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 2px; color: rgba(255,248,238,.35); text-transform: uppercase; margin-bottom: 4px; }
+.wc-val { font-size: 16px; font-weight: 700; color: var(--cream); }
+.wc-val.big { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px; color: var(--yellow); }
+.wcard-hashtags { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 36px; }
+.wcard-hashtag {
+  font-family: 'Space Mono', monospace; font-size: 11px;
+  color: rgba(255,248,238,.4); border: 1px solid rgba(255,248,238,.15);
+  padding: 5px 14px; border-radius: 100px;
+}
+.share-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.sbtn {
+  padding: 12px 24px; border-radius: 100px;
+  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s; border: 2px solid transparent;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.sbtn-main { background: var(--orange); color: white; border-color: var(--orange); }
+.sbtn-main:hover { background: var(--orange2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,107,53,.4); }
+.sbtn-sec { background: transparent; color: var(--cream); border-color: rgba(255,248,238,.25); }
+.sbtn-sec:hover { border-color: var(--cream); background: rgba(255,248,238,.06); }
+
+/* ── CONFETTI ── */
+.confetti-piece {
+  position: fixed;
+  width: 10px; height: 10px;
+  top: -10px;
+  border-radius: 2px;
+  animation: confetti-fall linear forwards;
+  pointer-events: none;
+  z-index: 999;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--ink); color: var(--cream);
+  padding: 14px 20px; border-radius: 12px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  z-index: 999; transform: translateY(100px);
+  transition: transform 0.3s cubic-bezier(.16,1,.3,1);
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid rgba(255,248,238,.1);
+}
+.toast.show { transform: translateY(0); }
+
+/* SCROLL ANIM */
+.fi { opacity: 0; transform: translateY(28px); transition: opacity .6s ease, transform .6s ease; }
+.fi.on { opacity: 1; transform: translateY(0); }
+.fi-d2 { transition-delay: .1s; }
+.fi-d3 { transition-delay: .2s; }
+.fi-d4 { transition-delay: .3s; }
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sec{padding:52px 20px;}
+  .charts-2,.charts-3{grid-template-columns:1fr;}
+  .wcard-grid{grid-template-columns:repeat(2,1fr);}
+  #wcard{padding:36px 20px;}
+  .roast-grid{grid-template-columns:1fr;}
+  .top-nav{padding:14px 20px;}
+  .nav-pills{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✅ Copied!</div>
+
+<!-- ════ HERO ════ -->
+<div class="hero" id="heroWrap">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    VIBE CHECK v2.0 · CHAT ANALYZER
+  </div>
+
+  <h1>
+    Your Chat's
+    <span class="accent">Personality</span>
+  </h1>
+  <p class="hero-sub">Upload your WhatsApp chat and get roasted with facts, charts, funny insights & a shareable Wrapped card. No judgement. Maybe a little.</p>
+
+  <div class="upload-area" id="dropZone" onclick="document.getElementById('fileIn').click()">
+    <span class="upload-icon-big">📱</span>
+    <h3>Drop your _chat.txt here</h3>
+    <p>Export from WhatsApp → ⋮ More → Export Chat → Without Media<br>Works with iPhone & Android formats</p>
+    <button class="btn-upload" onclick="event.stopPropagation();document.getElementById('fileIn').click()">
+      ✨ Analyze My Chat
+    </button>
+    <input type="file" id="fileIn" accept=".txt">
+  </div>
+
+  <div class="err-msg" id="errMsg"></div>
+
+  <div class="loader-wrap" id="loaderWrap">
+    <div class="loader-emoji">🔍</div>
+    <div class="loader-msgs" id="loaderMsg">Reading your secrets…</div>
+    <div class="loader-txt">Crunching numbers</div>
+  </div>
+</div>
+
+<!-- ════ NAV ════ -->
+<nav class="top-nav" id="topNav">
+  <div class="nav-logo">VIBE <span>CHECK</span></div>
+  <div class="nav-pills">
+    <a href="#s1" class="nav-pill">Overview</a>
+    <a href="#s2" class="nav-pill">Roasts 🔥</a>
+    <a href="#s3" class="nav-pill">Charts</a>
+    <a href="#s5" class="nav-pill">Emojis</a>
+    <a href="#s7" class="nav-pill">Achievements</a>
+    <a href="#s9" class="nav-pill">Wrapped</a>
+  </div>
+  <button class="nav-btn" onclick="resetApp()">↩ New Chat</button>
+</nav>
+
+<!-- ════ DASHBOARD ════ -->
+<div id="dash">
+
+  <!-- 01 OVERVIEW -->
+  <div class="sec fi" id="s1">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">01 / OVERVIEW</div>
+        <div class="sec-title">The Big <em>Numbers</em></div>
+        <div class="sec-subtitle" id="overviewSub"></div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <!-- 02 ROASTS (funny insights) -->
+  <div class="roast-section fi" id="s2">
+    <div style="margin-bottom:48px;">
+      <div class="sec-num" style="color:var(--orange)">02 / PERSONALITY INSIGHTS</div>
+      <div class="sec-title" style="color:var(--cream)">Hot <em style="color:var(--yellow)">Takes</em> 🔥</div>
+      <div style="color:rgba(255,248,238,.45);font-size:15px;font-weight:400;margin-top:6px;">AI-powered (and slightly mean) observations about your chat</div>
+    </div>
+    <div class="roast-grid" id="roastGrid"></div>
+  </div>
+
+  <!-- 03 LEADERBOARD -->
+  <div class="sec fi" id="s3">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">03 / LEADERBOARD</div>
+        <div class="sec-title">The <em>Hierarchy</em></div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="lb" id="lbWrap"></div>
+  </div>
+
+  <!-- 04 ACTIVITY CHARTS -->
+  <div class="sec fi" id="s4">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">04 / PATTERNS</div>
+        <div class="sec-title">Activity <em>Heatmap</em></div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="charts-2" style="margin-bottom:20px;">
+      <div class="cc"><div class="cc-lbl">Messages by Hour ⏰</div><canvas id="cHour" height="180"></canvas></div>
+      <div class="cc"><div class="cc-lbl">Messages by Day 📅</div><canvas id="cDay" height="180"></canvas></div>
+    </div>
+    <div class="charts-2">
+      <div class="cc"><div class="cc-lbl">Monthly Volume 📈</div><canvas id="cMonth" height="180"></canvas></div>
+      <div class="cc"><div class="cc-lbl">Who Talks Most 🥧</div><canvas id="cPie" height="180"></canvas></div>
+    </div>
+    <div class="cc" style="margin-top:20px;">
+      <div class="cc-lbl">Activity Calendar (GitHub-style) 📆</div>
+      <div class="heatmap-wrap" style="margin-top:12px;">
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);">
+        Less
+        <div style="display:flex;gap:3px;align-items:center;">
+          <div style="width:12px;height:12px;border-radius:2px;background:#ebedf0;border:1px solid var(--border)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(255,107,53,.25)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(255,107,53,.5)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(255,107,53,.75)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:var(--orange)"></div>
+        </div>
+        More
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 EMOJI -->
+  <div class="sec fi" id="s5" style="background:white;">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">05 / EMOJI ANALYSIS</div>
+        <div class="sec-title">Emoji <em>DNA</em></div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="emoji-grid" id="emojiGrid"></div>
+    <div class="charts-2" style="margin-top:20px;">
+      <div class="cc"><div class="cc-lbl">Emoji vs Text-only messages</div><canvas id="cEmo" height="180"></canvas></div>
+      <div class="cc"><div class="cc-lbl">Top emoji users</div><div id="emojiUsers" style="margin-top:8px;"></div></div>
+    </div>
+  </div>
+
+  <!-- 06 VOCABULARY -->
+  <div class="sec fi" id="s6">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">06 / VOCABULARY</div>
+        <div class="sec-title">Word <em>Universe</em></div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="wcloud" id="wordCloud"></div>
+    <div class="charts-2" style="margin-top:20px;">
+      <div class="cc"><div class="cc-lbl">Most unique words per person</div><canvas id="cWords" height="180"></canvas></div>
+      <div class="cc">
+        <div class="cc-lbl">Questions asked most</div>
+        <div id="qWords" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 ACHIEVEMENTS -->
+  <div class="sec fi" id="s7" style="background:white;">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">07 / ACHIEVEMENTS</div>
+        <div class="sec-title">Chat <em>Awards</em> 🏆</div>
+        <div class="sec-subtitle">Given to the most deserving (and undeserving) members</div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="ach-grid" id="achGrid"></div>
+  </div>
+
+  <!-- 08 BEHAVIORAL PROFILES -->
+  <div class="sec fi" id="s8">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">08 / PROFILES</div>
+        <div class="sec-title">Who <em>Are</em> You?</div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="cc" style="margin-bottom:20px;">
+      <div class="cc-lbl">Speed Round — Response Styles</div>
+      <div class="speed-grid" id="speedGrid" style="margin-top:16px;"></div>
+    </div>
+    <div class="cc">
+      <div class="cc-lbl">Full Communication Profile</div>
+      <table class="ptable" style="margin-top:12px;" id="profTable">
+        <thead>
+          <tr>
+            <th>PERSON</th><th>MSGS</th><th>AVG WORDS</th>
+            <th>PEAK TIME</th><th>NIGHT OWL?</th><th>EARLY BIRD?</th><th>VIBE</th>
+          </tr>
+        </thead>
+        <tbody id="profBody"></tbody>
+      </table>
+    </div>
+    <div class="cc" style="margin-top:20px;">
+      <div class="cc-lbl">Memory Lane — First Messages 🕰️</div>
+      <div class="tl" id="tlFirst" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- 09 WRAPPED -->
+  <div class="sec fi" id="s9" style="background:white;">
+    <div class="sec-hdr">
+      <div>
+        <div class="sec-num">09 / SHAREABLE CARD</div>
+        <div class="sec-title">Chat <em>Wrapped</em> ✨</div>
+        <div class="sec-subtitle">Screenshot this, post it, make people jealous</div>
+      </div>
+      <div class="sec-line"></div>
+    </div>
+    <div class="wrapped-outer">
+      <div id="wcard"><!-- filled by JS --></div>
+    </div>
+    <p style="text-align:center;margin-top:16px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;">TAKE SCREENSHOT → SHARE → REPEAT</p>
+  </div>
+
+</div><!-- end dash -->
+
+<script>
+// ── CURSOR ──────────────────────────────────────────────────────
+const cur = document.getElementById('cursor');
+const dot = document.getElementById('cursorDot');
+let mx=0,my=0,cx=0,cy=0;
+document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; dot.style.left=mx+'px'; dot.style.top=my+'px'; });
+(function anim(){ cx+=(mx-cx)*.12; cy+=(my-cy)*.12; cur.style.left=cx+'px'; cur.style.top=cy+'px'; requestAnimationFrame(anim); })();
+document.querySelectorAll('button,a,.wtag,.ach-card,.lb-row,.sc').forEach(el=>{ el.addEventListener('mouseenter',()=>{ cur.style.transform='translate(-50%,-50%) scale(2)'; cur.style.borderColor='var(--orange)'; }); el.addEventListener('mouseleave',()=>{ cur.style.transform='translate(-50%,-50%) scale(1)'; }); });
+
+// ── TOAST ────────────────────────────────────────────────────────
+function showToast(msg,emoji='✅'){
+  const t=document.getElementById('toast');
+  t.innerHTML=emoji+' '+msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── UPLOAD ───────────────────────────────────────────────────────
+const dropZone=document.getElementById('dropZone');
+const fileIn=document.getElementById('fileIn');
+const errMsg=document.getElementById('errMsg');
+const loaderWrap=document.getElementById('loaderWrap');
+const heroWrap=document.getElementById('heroWrap');
+const dash=document.getElementById('dash');
+const topNav=document.getElementById('topNav');
+
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)readFile(f);});
+fileIn.addEventListener('change',()=>{if(fileIn.files[0])readFile(fileIn.files[0]);});
+
+const loaderLines=['Reading your secrets…','Counting how many times you said "ok"…','Judging your emoji usage…','Calculating who\'s the simp…','Finding the most unread messages…','Detecting ghosting patterns…','Translating "ok" into emotion…','Almost done roasting you…'];
+let loaderIdx=0,loaderTimer;
+
+function readFile(file){
+  errMsg.style.display='none';
+  dropZone.style.display='none';
+  loaderWrap.style.display='flex';
+  loaderIdx=0;
+  loaderTimer=setInterval(()=>{
+    document.getElementById('loaderMsg').textContent=loaderLines[loaderIdx%loaderLines.length];
+    loaderIdx++;
+  },900);
+  const reader=new FileReader();
+  reader.onload=e=>{ clearInterval(loaderTimer); try{ const msgs=parse(e.target.result); if(!msgs||msgs.length<5){showErr('Could not parse this file. Make sure you exported "Without Media" from WhatsApp. Both iPhone [brackets] and Android (dash) formats work.');loaderWrap.style.display='none';dropZone.style.display='block';}else{render(msgs);} }catch(ex){showErr('Error: '+ex.message);loaderWrap.style.display='none';dropZone.style.display='block';} };
+  reader.onerror=()=>{clearInterval(loaderTimer);showErr('Could not read file.');loaderWrap.style.display='none';dropZone.style.display='block';};
+  reader.readAsText(file,'UTF-8');
+}
+
+function showErr(msg){ errMsg.style.display='block'; errMsg.textContent=msg; }
+
+function resetApp(){
+  heroWrap.style.display='flex';
+  dropZone.style.display='block';
+  loaderWrap.style.display='none';
+  dash.style.display='none';
+  topNav.style.display='none';
+  fileIn.value='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── PARSER ───────────────────────────────────────────────────────
+function parse(txt){
+  txt=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const regs=[
+    /^\[(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4}),\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?\]\s+(.+?):\s+(.+)$/,
+    /^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4}),\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?\s+-\s+(.+?):\s+(.+)$/,
+  ];
+  const msgs=[];
+  const lines=txt.split('\n');
+  let last=null;
+  for(let i=0;i<lines.length;i++){
+    let hit=false;
+    for(const re of regs){
+      const m=lines[i].match(re);
+      if(m){
+        let yr=parseInt(m[3]); if(yr<100) yr+=2000;
+        let hr=parseInt(m[4]);
+        const ampm=m[7];
+        if(ampm){const ap=ampm.toLowerCase();if(ap==='pm'&&hr!==12)hr+=12;if(ap==='am'&&hr===12)hr=0;}
+        let dt=new Date(yr,parseInt(m[2])-1,parseInt(m[1]),hr,parseInt(m[5]));
+        if(isNaN(dt.getTime())) dt=new Date(yr,parseInt(m[1])-1,parseInt(m[2]),hr,parseInt(m[5]));
+        const user=m[8].trim();
+        const msg=m[9].trim();
+        if(/omitted|<media|end-to-end|null/i.test(msg)){last=null;hit=true;break;}
+        last={date:dt,hour:hr,dow:dt.getDay(),user,message:msg,words:msg.split(/\s+/).filter(Boolean).length};
+        msgs.push(last); hit=true; break;
+      }
+    }
+    if(!hit&&last&&lines[i].trim()){last.message+=' '+lines[i].trim();last.words=last.message.split(/\s+/).filter(Boolean).length;}
+  }
+  return msgs;
+}
+
+// ── CHART HELPERS ────────────────────────────────────────────────
+const CH={};
+function mk(id,type,data,opts){
+  if(CH[id])CH[id].destroy();
+  CH[id]=new Chart(document.getElementById(id),{type,data,options:opts||{}});
+  return CH[id];
+}
+const base={responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(26,26,46,.05)'},ticks:{color:'#6B7280',font:{family:"'Space Mono'",size:9}}},y:{grid:{color:'rgba(26,26,46,.05)'},ticks:{color:'#6B7280',font:{family:"'Space Mono'",size:9}}}}};
+
+// ── COLORS ───────────────────────────────────────────────────────
+const COLORS=['#FF6B35','#06D6A0','#9B5DE5','#118AB2','#FF6B9D','#FFD23F','#FF8C42','#44BFDE','#BF8EFF','#FFB347'];
+const AVcols=['#FFE0D0','#C8F7EE','#E5D5FF','#C8E8F4','#FFD5E5','#FFF3B0','#FFE4C8','#D0F0FA','#F0E0FF','#FFDDB0'];
+
+// ── MAIN RENDER ──────────────────────────────────────────────────
+function render(data){
+  clearInterval(loaderTimer);
+  heroWrap.style.display='none';
+  dash.style.display='block';
+  topNav.style.display='flex';
+
+  // ── Core stats ──
+  const users=[...new Set(data.map(d=>d.user))];
+  const uc={};users.forEach(u=>uc[u]=0);
+  data.forEach(d=>uc[d.user]++);
+  const sorted=users.slice().sort((a,b)=>uc[b]-uc[a]);
+  const total=data.length;
+  const allDateStrs=[...new Set(data.map(d=>d.date.toDateString()))];
+  const days=allDateStrs.length;
+  const totalWords=data.reduce((s,d)=>s+d.words,0);
+  const avgPD=Math.round(total/Math.max(days,1));
+
+  // timestamp sorted unique dates
+  const ts=allDateStrs.map(s=>new Date(s).getTime()).sort();
+  let maxGap=0;
+  for(let i=1;i<ts.length;i++){const g=(ts[i]-ts[i-1])/86400000;if(g>maxGap)maxGap=g;}
+
+  // longest streak
+  let best=1,cur=1;
+  for(let i=1;i<ts.length;i++){const g=Math.round((ts[i]-ts[i-1])/86400000);if(g===1){cur++;if(cur>best)best=cur;}else cur=1;}
+
+  // early bird
+  const dayFirst={};
+  data.forEach(d=>{const k=d.date.toDateString();if(!dayFirst[k])dayFirst[k]=d.user;});
+  const ebC={};Object.values(dayFirst).forEach(u=>{ebC[u]=(ebC[u]||0)+1;});
+  const eb=Object.entries(ebC).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+
+  // night owl
+  const owC={};
+  data.filter(d=>d.hour>=23||d.hour<=4).forEach(d=>{owC[d.user]=(owC[d.user]||0)+1;});
+  const nightMsgs=data.filter(d=>d.hour>=23||d.hour<=4).length;
+  const owl=Object.entries(owC).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+
+  // per-user avg words
+  const uAvgW={};
+  sorted.forEach(u=>{const ms=data.filter(d=>d.user===u);uAvgW[u]=ms.reduce((s,d)=>s+d.words,0)/Math.max(ms.length,1);});
+
+  // start date
+  const startDt=new Date(Math.min(...data.map(d=>d.date.getTime())));
+  const endDt=new Date(Math.max(...data.map(d=>d.date.getTime())));
+  const spanDays=Math.round((endDt-startDt)/86400000);
+
+  // questions
+  const qs=data.filter(d=>d.message.includes('?')).length;
+
+  // ── 01 OVERVIEW ──
+  document.getElementById('overviewSub').textContent=`${users.length} people, ${spanDays} days, zero chill`;
+  const sgCards=[
+    {e:'💬',v:fmt(total),l:'Total Messages',s:'sent in this group',cls:''},
+    {e:'📅',v:fmt(days),l:'Active Days',s:'at least 1 message',cls:'orange'},
+    {e:'📝',v:fmt(totalWords),l:'Words Sent',s:`that's ${Math.round(totalWords/150000).toFixed(1)} books`,cls:''},
+    {e:'⚡',v:fmt(avgPD),l:'Per Day',s:'messages on average',cls:'yellow'},
+    {e:'👑',v:sorted[0],l:'Top Sender',s:`${fmt(uc[sorted[0]])} messages`,cls:'green'},
+    {e:'🌅',v:eb,l:'Early Bird',s:'first message every day',cls:''},
+    {e:'🦉',v:owl,l:'Night Owl',s:`${fmt(nightMsgs)} after-midnight texts`,cls:'purple'},
+    {e:'👻',v:Math.round(maxGap),l:'Ghost Gap',s:'days of silence (rude)',cls:''},
+    {e:'🔥',v:best,l:'Best Streak',s:'consecutive active days',cls:'pink'},
+    {e:'❓',v:fmt(qs),l:'Questions Asked',s:Math.round(qs/total*100)+'% of messages'},
+    {e:'🤝',v:fmt(users.length),l:'Participants',s:'unique voices',cls:'blue'},
+    {e:'💡',v:Math.round(totalWords/total*10)/10,l:'Avg Words/Msg',s:'verbosity score',cls:''},
+  ];
+  document.getElementById('statsGrid').innerHTML=sgCards.map(s=>`
+    <div class="sc ${s.cls||''}">
+      <span class="sc-emoji">${s.e}</span>
+      <div class="sc-val">${s.v}</div>
+      <div class="sc-lbl">${s.l}</div>
+      <div class="sc-sub">${s.s}</div>
+    </div>`).join('');
+
+  // ── 02 ROASTS ──
+  const topSender=sorted[0], rank2=sorted[1]||sorted[0];
+  const mostVerbose=sorted.slice().sort((a,b)=>uAvgW[b]-uAvgW[a])[0];
+  const leastVerbose=sorted.slice().sort((a,b)=>uAvgW[a]-uAvgW[b])[0];
+  const nightOwlPct=Math.round((owC[owl]||0)/Math.max(uc[owl]||1,1)*100);
+  const earlyBirdPct=Math.round((ebC[eb]||0)/days*100);
+
+  // Day with most msgs
+  const dcMap={};data.forEach(d=>{const k=d.date.toDateString();dcMap[k]=(dcMap[k]||0)+1;});
+  const peakDay=Object.entries(dcMap).sort((a,b)=>b[1]-a[1])[0];
+
+  // Who uses most ?
+  const questers={};data.filter(d=>d.message.includes('?')).forEach(d=>{questers[d.user]=(questers[d.user]||0)+1;});
+  const topQuester=Object.entries(questers).sort((a,b)=>b[1]-a[1])[0]?.[0]||rank2;
+
+  // who gets left on read most (longest avg gap after their message)
+  const seenPct=Math.round(uc[sorted[sorted.length-1]]/total*100);
+
+  const roasts=[
+    {icon:'🎤',badge:'rb-orange',badge_txt:'Main Character',title:'The Scene Stealer',person:topSender,txt:`With ${fmt(uc[topSender])} messages, ${topSender} basically owns this chat. The rest of you are NPCs in their story.`,e:'👑'},
+    {icon:'📚',badge:'rb-purple',badge_txt:'Essay Writer',title:'Send a Voice Note Instead',person:mostVerbose,txt:`${mostVerbose} averages ${uAvgW[mostVerbose].toFixed(0)} words per message. That's not texting, that's a dissertation. Are you okay?`,e:'📖'},
+    {icon:'😴',badge:'rb-blue',badge_txt:'Ghost Mode',title:'Certified Minimalist',person:leastVerbose,txt:`${leastVerbose} sends ${uAvgW[leastVerbose].toFixed(1)} words on average. "ok", "lol", and "👍" are doing all the heavy lifting. A true minimalist.`,e:'🪨'},
+    {icon:'🌙',badge:'rb-yellow',badge_txt:'Night Owl',title:'Who Even Sleeps?',person:owl,txt:`${owl} is texting at unholy hours. ${nightOwlPct}% of their messages were sent after 11pm. Sleep is clearly a suggestion.`,e:'🌙'},
+    {icon:'☀️',badge:'rb-green',badge_txt:'Early Bird',title:'Good Morning, Unasked',person:eb,txt:`${eb} sends the first message ${earlyBirdPct}% of active days. Nobody asked but here they are, cheerful and online at 7am.`,e:'🐦'},
+    {icon:'❓',badge:'rb-pink',badge_txt:'Most Curious',title:'Needs Constant Validation',person:topQuester,txt:`${topQuester} asks the most questions in this chat. They just need answers — or maybe just attention. Probably both.`,e:'🙋'},
+    maxGap>3?{icon:'👻',badge:'rb-orange',badge_txt:'Ghosted',title:`${Math.round(maxGap)}-Day Silence Arc`,person:'This group',txt:`This chat went ${Math.round(maxGap)} days without a single message. What happened? Drama? Life? No one will ever know.`,e:'👻'}:null,
+    {icon:'📅',badge:'rb-blue',badge_txt:'Peak Chaos',title:'That One Wild Day',person:peakDay?fmtDate(new Date(peakDay[0])):'One day',txt:`The most chaotic day had ${peakDay?fmt(peakDay[1]):0} messages. Fingers were flying. Something clearly happened.`,e:'🌪️'},
+  ].filter(Boolean);
+
+  document.getElementById('roastGrid').innerHTML=roasts.map(r=>`
+    <div class="roast-card" data-emoji="${r.e}">
+      <div class="roast-badge ${r.badge}">${r.badge_txt}</div>
+      <div class="roast-title">${r.icon} ${r.title}</div>
+      <span class="roast-person">${r.person}</span>
+      <div class="roast-txt">${r.txt}</div>
+    </div>`).join('');
+
+  // ── 03 LEADERBOARD ──
+  const maxC=uc[sorted[0]];
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('lbWrap').innerHTML=sorted.slice(0,12).map((u,i)=>{
+    const pct=Math.round(uc[u]/total*100);
+    const aw=uAvgW[u].toFixed(1);
+    return `<div class="lb-row ${i===0?'rank1':i===1?'rank2':i===2?'rank3':''}">
+      <div class="lb-rank ${i===0?'gold':''}">${i<3?medals[i]:String(i+1).padStart(2,'0')}</div>
+      <div class="av" style="background:${AVcols[i%AVcols.length]};color:${COLORS[i%COLORS.length]}">${u.charAt(0).toUpperCase()}</div>
+      <div class="lb-info">
+        <div class="lb-name">${u}</div>
+        <div class="lb-meta">${pct}% of chat · ${aw} words/msg · ${fmtPeakHour(data,u)}</div>
+      </div>
+      <div class="lb-bar-wrap"><div class="lb-bar" style="width:${Math.round(uc[u]/maxC*100)}%;background:${COLORS[i%COLORS.length]}"></div></div>
+      <div class="lb-count">${fmt(uc[u])}</div>
+    </div>`;
+  }).join('');
+
+  // ── 04 ACTIVITY CHARTS ──
+  const hD=Array(24).fill(0); data.forEach(d=>hD[d.hour]++);
+  mk('cHour','bar',{
+    labels:Array.from({length:24},(_,i)=>i===0?'12a':i<12?i+'a':i===12?'12p':(i-12)+'p'),
+    datasets:[{data:hD,backgroundColor:hD.map((_,i)=>(i>=23||i<=4)?'rgba(155,93,229,.6)':(i>=6&&i<=9)?'rgba(255,107,53,.9)':'rgba(255,107,53,.3)'),borderRadius:4,borderSkipped:false}]
+  },base);
+
+  const dD=Array(7).fill(0); data.forEach(d=>dD[d.dow]++);
+  mk('cDay','bar',{
+    labels:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    datasets:[{data:dD,backgroundColor:['#9B5DE5','#118AB2','#06D6A0','#FFD23F','#FF8C42','#FF6B35','#FF6B9D'],borderRadius:4,borderSkipped:false}]
+  },base);
+
+  const mMap={};
+  data.forEach(d=>{const k=d.date.getFullYear()+'-'+String(d.date.getMonth()+1).padStart(2,'0');mMap[k]=(mMap[k]||0)+1;});
+  const mLabels=Object.keys(mMap).sort().slice(-18);
+  mk('cMonth','line',{
+    labels:mLabels,
+    datasets:[{data:mLabels.map(k=>mMap[k]),borderColor:'#FF6B35',borderWidth:2.5,pointBackgroundColor:'#FF6B35',pointRadius:4,fill:true,backgroundColor:(ctx)=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,'rgba(255,107,53,.25)');g.addColorStop(1,'rgba(255,107,53,0)');return g;},tension:.4}]
+  },base);
+
+  mk('cPie','doughnut',{
+    labels:sorted.slice(0,10),
+    datasets:[{data:sorted.slice(0,10).map(u=>uc[u]),backgroundColor:COLORS,borderColor:sorted.slice(0,10).map(()=>'white'),borderWidth:3}]
+  },{responsive:true,cutout:'60%',plugins:{legend:{labels:{color:'#6B7280',font:{family:"'Space Mono'",size:9},boxWidth:10,padding:10}}}});
+
+  // HEATMAP
+  buildHeatmap(data, endDt);
+
+  // ── 05 EMOJIS ──
+  const emoRe=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+  const eMap={};
+  data.forEach(d=>{[...d.message.matchAll(emoRe)].forEach(m=>{eMap[m[0]]=(eMap[m[0]]||0)+1;});});
+  const topE=Object.entries(eMap).sort((a,b)=>b[1]-a[1]).slice(0,20);
+  const maxE=topE[0]?.[1]||1;
+
+  const eg=document.getElementById('emojiGrid');
+  if(topE.length===0){
+    eg.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-family:\'Space Mono\',monospace;font-size:13px;">No emojis found — this chat is all business 😐</div>';
+  }else{
+    eg.innerHTML=topE.map(([e,ct],i)=>`
+      <div class="emoji-card">
+        <span class="emoji-char">${e}</span>
+        <div class="emoji-count">${fmt(ct)}</div>
+        <div class="emoji-pct">${Math.round(ct/maxE*100)}% of emojis</div>
+      </div>`).join('');
+  }
+
+  const withEmo=data.filter(d=>emoRe.test(d.message)).length;
+  mk('cEmo','doughnut',{
+    labels:['With Emoji 😄','Text Only 📝'],
+    datasets:[{data:[withEmo,total-withEmo],backgroundColor:['#FFD23F','#118AB2'],borderColor:'white',borderWidth:4}]
+  },{responsive:true,cutout:'65%',plugins:{legend:{labels:{color:'#6B7280',font:{family:"'Space Mono'",size:9},boxWidth:10,padding:10}}}});
+
+  // emoji per user
+  const euMap={};
+  data.forEach(d=>{const ems=[...d.message.matchAll(emoRe)];if(ems.length>0){euMap[d.user]=(euMap[d.user]||0)+ems.length;}});
+  const topEU=Object.entries(euMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxEU=topEU[0]?.[1]||1;
+  document.getElementById('emojiUsers').innerHTML=topEU.map(([u,ct],i)=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div class="av" style="width:32px;height:32px;font-size:13px;background:${AVcols[i%AVcols.length]};color:${COLORS[i%COLORS.length]};flex-shrink:0">${u.charAt(0)}</div>
+      <div style="font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.split(' ')[0]}</div>
+      <div style="height:6px;width:80px;background:rgba(26,26,46,.08);border-radius:3px;"><div style="height:100%;width:${Math.round(ct/maxEU*100)}%;background:${COLORS[i%COLORS.length]};border-radius:3px;"></div></div>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);min-width:32px;text-align:right">${ct}</div>
+    </div>`).join('');
+
+  // ── 06 VOCABULARY ──
+  const stop=new Set('this that with from your have just then will what they their were been when into here there about which some more would could should dont cant wont didnt isnt wasnt arent also only even than because before after over where while being doing going every like want need know think come good yeah okay nahi karo agar abhi sahi toh haan nope haha lol bhai yaar mere mera teri tera tere hai hain kar kya bhi aur par phir bohot bahut baat kuch sab woh isko usko thik theek acha accha matlab okay fine sure wait already still never always should must actually really very much more most some other another such same well done both back through just much also many'.split(' '));
+  const wmap={};
+  data.forEach(d=>d.message.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).forEach(w=>{if(w.length>3&&!stop.has(w)&&isNaN(w))wmap[w]=(wmap[w]||0)+1;}));
+  const topW=Object.entries(wmap).sort((a,b)=>b[1]-a[1]).slice(0,50);
+  const maxWC=topW[0]?.[1]||1;
+
+  const wColors=[
+    {bg:'#FF6B35',tc:'white'},{bg:'#FFD23F',tc:var_ink()},{bg:'#06D6A0',tc:var_ink()},
+    {bg:'#9B5DE5',tc:'white'},{bg:'#118AB2',tc:'white'},{bg:'#FF6B9D',tc:'white'},
+    {bg:'rgba(255,107,53,.15)',tc:'#FF6B35'},{bg:'rgba(6,214,160,.15)',tc:'#06D6A0'},
+    {bg:'rgba(155,93,229,.15)',tc:'#9B5DE5'},{bg:'rgba(17,138,178,.15)',tc:'#118AB2'},
+  ];
+  document.getElementById('wordCloud').innerHTML=topW.map(([w,ct])=>{
+    const r=ct/maxWC;
+    const sz=Math.round(11+r*28);
+    const ci=Math.floor(r*9.9)|0;
+    const cc=wColors[Math.min(ci,wColors.length-1)];
+    return `<span class="wtag" style="font-size:${sz}px;background:${cc.bg};color:${cc.tc};border-color:transparent" title="${ct} times">${w}</span>`;
+  }).join('');
+
+  // Unique words per user (vocab diversity)
+  const uvocab={};
+  sorted.forEach(u=>{const ms=data.filter(d=>d.user===u);const ws=new Set();ms.forEach(d=>d.message.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(w=>w.length>3&&!stop.has(w)).forEach(w=>ws.add(w)));uvocab[u]=ws.size;});
+  mk('cWords','bar',{
+    labels:sorted.slice(0,8).map(u=>u.split(' ')[0]),
+    datasets:[{data:sorted.slice(0,8).map(u=>uvocab[u]),backgroundColor:COLORS,borderRadius:8,borderSkipped:false}]
+  },base);
+
+  // Q words
+  const qmap={};
+  data.forEach(d=>{if(d.message.includes('?'))d.message.toLowerCase().split(/\s+/).forEach(w=>{const wc=w.replace(/[^a-z]/g,'');if(wc.length>4&&!stop.has(wc))qmap[wc]=(qmap[wc]||0)+1;});});
+  document.getElementById('qWords').innerHTML=Object.entries(qmap).sort((a,b)=>b[1]-a[1]).slice(0,16).map(([w,ct])=>`<span style="padding:5px 14px;border-radius:100px;background:rgba(17,138,178,.1);color:#118AB2;border:1.5px solid #118AB2;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;cursor:default">${w} <span style="opacity:.5">${ct}</span></span>`).join('');
+
+  // ── 07 ACHIEVEMENTS ──
+  // Most late-night message
+  const lateKing=Object.entries(owC).sort((a,b)=>b[1]-a[1])[0]?.[0]||sorted[0];
+  // Most consecutive messages (spammer)
+  let spammer=sorted[0],maxConsec=1,tmpConsec=1,tmpUser=data[0]?.user;
+  for(let i=1;i<data.length;i++){if(data[i].user===data[i-1].user){tmpConsec++;if(tmpConsec>maxConsec){maxConsec=tmpConsec;spammer=data[i].user;}}else tmpConsec=1;}
+  // Most words in one day
+  const userDayWords={};
+  data.forEach(d=>{const k=d.user+'|'+d.date.toDateString();userDayWords[k]=(userDayWords[k]||0)+d.words;});
+  const bigDay=Object.entries(userDayWords).sort((a,b)=>b[1]-a[1])[0];
+  const bigDayUser=bigDay?bigDay[0].split('|')[0]:sorted[0];
+  const bigDayWords=bigDay?bigDay[1]:0;
+  // Who uses '?' most per msg
+  const questionRatio={};
+  sorted.forEach(u=>{const ms=data.filter(d=>d.user===u);questionRatio[u]=ms.filter(d=>d.message.includes('?')).length/Math.max(ms.length,1);});
+  const topAsker=sorted.slice().sort((a,b)=>questionRatio[b]-questionRatio[a])[0];
+  // Who types shortest messages
+  const shortMsgUser=sorted.slice().sort((a,b)=>uAvgW[a]-uAvgW[b])[0];
+  // Longest single message
+  let longestMsg=data[0],longestSender=data[0]?.user||sorted[0];
+  data.forEach(d=>{if(d.words>(longestMsg?.words||0)){longestMsg=d;longestSender=d.user;}});
+
+  const achievements=[
+    {icon:'👑',title:'Main Character',desc:'Sent the most messages in the group',winner:sorted[0],tag:'LEGENDARY',locked:false},
+    {icon:'📖',title:'Essay Enthusiast',desc:`Typed ${uAvgW[mostVerbose].toFixed(0)} words per message. A true novelist.`,winner:mostVerbose,tag:'EPIC',locked:false},
+    {icon:'🤫',title:'Silent But Present',desc:`${uAvgW[shortMsgUser].toFixed(1)} avg words/msg. Less is more? Debatable.`,winner:shortMsgUser,tag:'RARE',locked:false},
+    {icon:'🌙',title:'Vampire Hours',desc:`${lateKing} sends ${owC[lateKing]||0} messages after 11pm. Sleep? Overrated.`,winner:lateKing,tag:'CURSED',locked:false},
+    {icon:'☀️',title:'Morning Person (Ugh)',desc:`${eb} started the day ${ebC[eb]||0} times. Annoyingly productive.`,winner:eb,tag:'BLESSED',locked:false},
+    {icon:'🔫',title:'Rapid Fire',desc:`${spammer} sent ${maxConsec} messages in a row. One. Text. At. A. Time.`,winner:spammer,tag:'LEGENDARY',locked:false},
+    {icon:'✍️',title:'Novel in One Day',desc:`Typed ${fmt(bigDayWords)} words in a single day. Hemingway would weep.`,winner:bigDayUser,tag:'EPIC',locked:false},
+    {icon:'❓',title:'Professional Questioner',desc:`${Math.round(questionRatio[topAsker]*100)}% of messages are questions. Did you pass school?`,winner:topAsker,tag:'CURIOUS',locked:false},
+    {icon:'📜',title:'The Monologue',desc:`Sent the longest message: ${longestMsg?.words||0} words. That's a TED talk.`,winner:longestSender,tag:'LEGENDARY',locked:false},
+    {icon:'🔥',title:'Streak Master',desc:`This chat ran ${best} days without ghosting. Impressive.`,winner:'Whole group',tag:'TEAM',locked:false},
+    maxGap>7?{icon:'💀',title:'The Great Silence',desc:`${Math.round(maxGap)}-day gap. What happened? We will never know.`,winner:'This group',tag:'HAUNTED',locked:false}:null,
+    {icon:'🎭',title:'Drama Meter',desc:`${fmt(qs)} questions asked in total. Someone's always confused.`,winner:'Everyone',tag:'CHAOTIC',locked:false},
+  ].filter(Boolean);
+
+  document.getElementById('achGrid').innerHTML=achievements.map(a=>`
+    <div class="ach-card">
+      <div class="ach-badge">${a.tag}</div>
+      <span class="ach-icon">${a.icon}</span>
+      <div class="ach-title">${a.title}</div>
+      <div class="ach-desc">${a.desc}</div>
+      <div class="ach-winner">→ ${a.winner}</div>
+    </div>`).join('');
+
+  // ── 08 PROFILES ──
+  // Speed rings
+  document.getElementById('speedGrid').innerHTML=sorted.slice(0,6).map((u,i)=>{
+    const ms=data.filter(d=>d.user===u);
+    const pct=Math.round(uc[u]/total*100);
+    const r=157; // circumference approx (2*PI*25)
+    const offset=r-(r*pct/100);
+    return `<div class="speed-card">
+      <div class="speed-ring">
+        <svg class="speed-svg" viewBox="0 0 60 60">
+          <circle class="speed-bg" cx="30" cy="30" r="25"/>
+          <circle class="speed-fg" cx="30" cy="30" r="25" stroke="${COLORS[i%COLORS.length]}" stroke-dasharray="${r}" stroke-dashoffset="${offset}"/>
+        </svg>
+        <div class="speed-val">${pct}<span class="speed-unit">%</span></div>
+      </div>
+      <div class="speed-label">${u.split(' ')[0]}</div>
+      <div class="speed-name">${fmt(uc[u])} messages</div>
+    </div>`;
+  }).join('');
+
+  // Profile table
+  document.getElementById('profBody').innerHTML=sorted.slice(0,10).map((u,i)=>{
+    const ms=data.filter(d=>d.user===u);
+    const hB=Array(24).fill(0);ms.forEach(d=>hB[d.hour]++);
+    const ph=hB.indexOf(Math.max(...hB));
+    const phL=ph===0?'Midnight':ph<12?ph+'am':ph===12?'Noon':(ph-12)+'pm';
+    const aw=uAvgW[u];
+    const isOwl=(owC[u]||0)/Math.max(uc[u],1)>0.08;
+    const isEB=(ebC[u]||0)/Math.max(days*.1,1)>1;
+    const vibe=aw>18?{l:'Novelist 📖',c:'p-purple'}:aw>9?{l:'Conversant 💬',c:'p-blue'}:aw>5?{l:'Punchy ⚡',c:'p-green'}:{l:'Ghost 👻',c:'p-orange'};
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:10px"><div class="av" style="width:32px;height:32px;font-size:13px;background:${AVcols[i%AVcols.length]};color:${COLORS[i%COLORS.length]};flex-shrink:0">${u.charAt(0)}</div><span>${u}</span></div></td>
+      <td style="font-family:'Space Mono',monospace">${fmt(uc[u])}</td>
+      <td style="font-family:'Space Mono',monospace">${aw.toFixed(1)}</td>
+      <td>${phL}</td>
+      <td>${isOwl?'🦉 Yes':'—'}</td>
+      <td>${isEB?'☀️ Yes':'—'}</td>
+      <td><span class="pill ${vibe.c}">${vibe.l}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Memory lane first messages
+  document.getElementById('tlFirst').innerHTML=data.slice().sort((a,b)=>a.date-b.date).slice(0,8).map((d,i)=>`
+    <div class="tl-item">
+      <div class="tl-dot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <div class="tl-date">${fmtDate(d.date)}</div>
+      <div>
+        <div class="tl-msg">"${d.message.slice(0,65)}${d.message.length>65?'…':''}"</div>
+        <div class="tl-who">— ${d.user}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 09 WRAPPED ──
+  const topEmoji=topE[0]?.[0]||'💬';
+  const fav=topW[0]?.[0]||'—';
+  document.getElementById('wcard').innerHTML=`
+    <div class="wcard-eyebrow">VIBE CHECK · AURA INTELLIGENCE · ${new Date().getFullYear()}</div>
+    <div class="wcard-title">Chat<br><em>Wrapped</em></div>
+    <div class="wcard-sub">${startDt.toLocaleDateString('en-GB',{month:'long',year:'numeric'})} → ${endDt.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</div>
+    <div class="wcard-grid">
+      <div class="wc"><span class="wc-ico">👑</span><div class="wc-lbl">Main Character</div><div class="wc-val big">${sorted[0]}</div></div>
+      <div class="wc"><span class="wc-ico">💬</span><div class="wc-lbl">Total Messages</div><div class="wc-val">${fmt(total)}</div></div>
+      <div class="wc"><span class="wc-ico">📅</span><div class="wc-lbl">Days Talking</div><div class="wc-val">${spanDays}</div></div>
+      <div class="wc"><span class="wc-ico">📝</span><div class="wc-lbl">Words Sent</div><div class="wc-val">${fmt(totalWords)}</div></div>
+      <div class="wc"><span class="wc-ico">🔥</span><div class="wc-lbl">Best Streak</div><div class="wc-val">${best} days</div></div>
+      <div class="wc"><span class="wc-ico">💡</span><div class="wc-lbl">Top Word</div><div class="wc-val big">${fav}</div></div>
+      <div class="wc"><span class="wc-ico">🌅</span><div class="wc-lbl">Early Bird</div><div class="wc-val">${eb}</div></div>
+      <div class="wc"><span class="wc-ico">🦉</span><div class="wc-lbl">Night Owl</div><div class="wc-val">${owl}</div></div>
+      <div class="wc"><span class="wc-ico">👻</span><div class="wc-lbl">Ghost Gap</div><div class="wc-val">${Math.round(maxGap)} days</div></div>
+    </div>
+    <div class="wcard-hashtags">
+      <span class="wcard-hashtag">#ChatWrapped</span>
+      <span class="wcard-hashtag">#VibeCheck</span>
+      <span class="wcard-hashtag">#${new Date().getFullYear()}</span>
+      <span class="wcard-hashtag">${users.length} people · ${spanDays} days</span>
+    </div>
+    <div class="share-btns">
+      <button class="sbtn sbtn-main" onclick="shareCard()">📸 Save as Image</button>
+      <button class="sbtn sbtn-sec" onclick="copyStats()">📋 Copy Stats</button>
+      <button class="sbtn sbtn-sec" onclick="shareText()">🔗 Share</button>
+    </div>`;
+
+  // Store share data
+  window._sd={total,topU:sorted[0],spanDays,fav,topEmoji,eb,owl,totalWords,best,nUsers:users.length,startDt,endDt,maxGap:Math.round(maxGap)};
+
+  // Scroll animations
+  const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('on');}),{threshold:.07});
+  document.querySelectorAll('.fi').forEach(el=>obs.observe(el));
+
+  // Confetti!
+  launchConfetti();
+
+  setTimeout(()=>document.getElementById('s1').scrollIntoView({behavior:'smooth'}),200);
+}
+
+// ── HEATMAP ──────────────────────────────────────────────────────
+function buildHeatmap(data, endDt) {
+  const hm=document.getElementById('heatmap');
+  const dcMap={};
+  data.forEach(d=>{const k=d.date.toDateString();dcMap[k]=(dcMap[k]||0)+1;});
+  const maxD=Math.max(...Object.values(dcMap),1);
+
+  // 52 weeks back from end date
+  const cells=[];
+  for(let i=364;i>=0;i--){
+    const d=new Date(endDt.getTime());
+    d.setDate(d.getDate()-i);
+    const k=d.toDateString();
+    const v=dcMap[k]||0;
+    const pct=v/maxD;
+    let bg;
+    if(v===0) bg='#ebedf0';
+    else if(pct<.25) bg='rgba(255,107,53,.25)';
+    else if(pct<.5) bg='rgba(255,107,53,.5)';
+    else if(pct<.75) bg='rgba(255,107,53,.75)';
+    else bg='#FF6B35';
+    cells.push(`<div class="hm-cell" style="background:${bg}" title="${k}: ${v} msgs"></div>`);
+  }
+  hm.innerHTML=cells.join('');
+}
+
+// ── SHARE FUNCTIONS ───────────────────────────────────────────────
+function shareCard(){
+  showToast('Generating image…','⏳');
+  const card=document.getElementById('wcard');
+  html2canvas(card,{backgroundColor:'#1A1A2E',scale:2,useCORS:true,logging:false}).then(canvas=>{
+    canvas.toBlob(blob=>{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='chat-wrapped-'+new Date().getFullYear()+'.png';
+      a.click();URL.revokeObjectURL(url);
+      showToast('Image saved!','✅');
+    },'image/png');
+  }).catch(()=>showToast('Right-click the card to save manually','❌'));
+}
+
+function copyStats(){
+  const d=window._sd;if(!d)return;
+  const txt=`🔥 Chat Wrapped ${new Date().getFullYear()}\n\n👑 Main character: ${d.topU}\n💬 ${fmt(d.total)} messages over ${d.spanDays} days\n📝 ${fmt(d.totalWords)} words total\n🌅 Early bird: ${d.eb}\n🦉 Night owl: ${d.owl}\n🔥 Best streak: ${d.best} days\n👻 Ghosted for: ${d.maxGap} days\n👥 ${d.nUsers} participants\n\n#ChatWrapped #VibeCheck #${new Date().getFullYear()}`;
+  navigator.clipboard.writeText(txt).then(()=>showToast('Stats copied!','📋')).catch(()=>{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('Copied!','✅');});
+}
+
+function shareText(){
+  const d=window._sd;if(!d)return;
+  const txt=`🔥 My chat has ${fmt(d.total)} messages over ${d.spanDays} days!\n👑 ${d.topU} runs this group\n🌅 Early bird: ${d.eb} · 🦉 ${d.owl} stays up late\nAnalyzed by AURA Vibe Check #ChatWrapped ${new Date().getFullYear()}`;
+  if(navigator.share){navigator.share({title:'Chat Wrapped',text:txt}).catch(()=>{});}
+  else{navigator.clipboard.writeText(txt).then(()=>showToast('Copied to clipboard!','✅')).catch(()=>{});}
+}
+
+// ── CONFETTI ──────────────────────────────────────────────────────
+function launchConfetti(){
+  const colors=['#FF6B35','#FFD23F','#06D6A0','#9B5DE5','#FF6B9D','#118AB2'];
+  for(let i=0;i<80;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.left=Math.random()*100+'vw';
+    el.style.background=colors[Math.floor(Math.random()*colors.length)];
+    el.style.width=(Math.random()*10+6)+'px';
+    el.style.height=(Math.random()*10+6)+'px';
+    el.style.borderRadius=Math.random()>.5?'50%':'2px';
+    el.style.animationDuration=(Math.random()*2+2)+'s';
+    el.style.animationDelay=(Math.random()*1.5)+'s';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),(Math.random()*2+2)*1000+1500);
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function fmt(n){return Number(n).toLocaleString();}
+function fmtDate(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function var_ink(){return '#1A1A2E';}
+function fmtPeakHour(data,user){
+  const ms=data.filter(d=>d.user===user);
+  const hB=Array(24).fill(0);ms.forEach(d=>hB[d.hour]++);
+  const ph=hB.indexOf(Math.max(...hB));
+  return 'peak '+(ph===0?'12am':ph<12?ph+'am':ph===12?'12pm':(ph-12)+'pm');
+}
+</script>
+</body>
+</html>
